@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+
+    <script type="text/javascript" src="scripts/easeljs.min.js"></script>
+    <script type="text/javascript" src="scripts/eventemitter2.min.js"></script>
+    <script type="text/javascript" src="scripts/roslib.min.js"></script>
+    <script type="text/javascript" src="scripts/ros2d.min.js"></script>
+    <script type="text/javascript" src="scripts/nav2d.js"></script>
+    <script type="text/javascript" src="scripts/ros3d.min.js"></script>
+
+
+    <link rel="stylesheet" href="/css/bootstrap.css">
+
+    <!-- jQuery library -->
+    <script src="/js/jquery.js"></script>
+
+    <!-- Latest compiled JavaScript -->
+    <script src="/js/bootstrap.js"></script>
+
+    <script src="scripts/axios.min.js"></script>
+
+
+    <script src="/js/bootstrap-toggle.min.js"></script>
+    <script src="/js/dataTables.dataTables.min.js"></script>
+    <script src="/js/bootstrap-table.min.js"></script>
+
+    <link rel="stylesheet" href="/css/bootstrap-table.min.css">
+
+
+    <link rel="stylesheet" href="/css/bootstrap-toggle.min.css">
+
+
+    <style>
+        body {
+            background-color: linen;
+        }
+
+        .table tbody tr.highlight td {
+            background-color: #ddd;
+        }
+    </style>
+
+    <script type="text/javascript" type="text/javascript">
+        /**
+         * Setup all visualization elements when the page is loaded.
+         */
+        //const axios  = new axios()
+
+
+        var ip = ""
+        var rosConn;
+        var mapTable = $('#mapTable')
+        var mapname = "map"
+
+        //function init() {
+        $(document).ready(function () {
+            //axios = require('axios')
+            //console.log(axios)
+
+
+
+            /*      const checkbox = document.getElementById('switch_slam')
+              console.log("+++++++++++++++++")
+
+              console.log(checkbox)
+
+
+              checkbox.addEventListener('change', (event) => {
+                  console.log("checked !!!!!!")
+                  if (event.target.checked) {
+                      startSLAMsrv.callService(onSlam, function (result) {
+                          console.log(result);
+                      })
+                      alert('checked');
+                  } else {
+                      startSLAMsrv.callService(offSlam, function (result) {
+                          console.log(result);
+                      })
+                      alert('not checked');
+                  }
+              })*/
+
+
+
+
+            /*mapTable.on('select', function (e, dt, type, indexes) {
+                var count = table.rows({
+                    selected: true
+                }).count();
+                console.log("==============================>")
+                console.log(count)
+
+                // do something with the number of selected rows
+            });*/
+
+            /* var dataSet = [['aaaaa'],['bbbb'],['cccccc']]
+             console.log(dataSet)
+             var mTable = $('#mapTable').DataTable({
+                 aaData: dataSet,
+                 columns: [{
+                         title: "Name"
+                     }
+                 ]
+             });*/
+
+            //console.log(mTable)
+
+
+
+
+        })
+
+
+        ip = location.host;
+        ip = ip.substring(0, ip.indexOf(':'));
+        console.log(ip)
+
+        var baseZoomX = 1;
+        var baseZoomY = 1;
+        // Connect to ROS.
+        var ros = new ROSLIB.Ros({
+            //url: 'ws://192.168.88.248:9090'
+            url: "ws://" + ip + ":9090"
+
+        });
+
+
+
+
+
+
+
+
+
+
+        // Scale the canvas to fit to the map
+
+        /*var aaa1 = new ROS2D.ArrowShape({
+            rootObject: viewer.scene
+        })*/
+
+        /*gridClient.on('change', function () {
+            viewer.scaleToDimensions(gridClient.currentGrid.width, gridClient.currentGrid.height);
+            viewer.shift(gridClient.currentGrid.pose.position.x, gridClient.currentGrid.pose.position.y);
+            viewer.scene.addChild(aaa1)
+            console.log("zoom ===== ")
+            console.log(viewer.scene.scaleX)
+
+            //viewer.scene.scaleX*=6
+            //viewer.scene.scaleY*=6
+            //viewer.scene.x+=200
+            //viewer.scene.y-=300
+            //zoomView.startZoom(gridClient.currentGrid.width/2, gridClient.currentGrid.height/2)
+            //zoomView.zoom(3)
+
+
+        });*/
+
+
+        ros.on('connection', function () {
+            console.log("Connected!!!!!")
+            // Create the main viewer.
+            var viewer3d = new ROS3D.Viewer({
+                divID: 'map3d',
+                width: 800,
+                height: 600,
+                antialias: true
+            });
+
+            var tfClient = new ROSLIB.TFClient({
+                ros: ros,
+                angularThres: 0.01,
+                transThres: 0.01,
+                rate: 10.0,
+                fixedFrame: 'map',
+                serverName: 'tf2_web_republisher'
+            });
+
+
+            var laserScan = new ROS3D.LaserScan({
+                    ros: ros,
+                    topic: 'scan',
+                    tfClient: tfClient,
+                    rootObject: viewer3d.scene,
+                    material: {
+                        color: 0x880000,
+                        size: 0.1
+                    }
+                }
+
+            )
+
+            var sn = null
+
+
+            var pathDisplay = new ROS3D.Path({
+                ros: ros,
+                tfClient: tfClient,
+                rootObject: viewer3d.scene,
+                topic: 'move_base/NavfnROS/plan'
+
+            })
+
+            viewer3d.addObject(pathDisplay);
+
+
+            var poseR = new ROS3D.Pose({
+                ros: ros,
+                tfClient: tfClient,
+                rootObject: viewer3d.scene,
+                topic: 'robot_pose'
+
+            })
+
+
+
+            var urdfClient = new ROS3D.UrdfClient({
+                ros: ros,
+                tfClient: tfClient,
+                rootObject: viewer3d.scene
+            });
+
+            var gridClient3d = new ROS3D.OccupancyGridClient({
+                ros: ros,
+                continuous: true,
+                rootObject: viewer3d.scene
+            });
+
+
+            var tfClientM = new ROSLIB.TFClient({
+                ros: ros,
+                angularThres: 0.01,
+                transThres: 0.01,
+                rate: 10.0,
+                fixedFrame: '/map'
+            });
+
+
+
+
+
+            var imClient = new ROS3D.InteractiveMarkerClient({
+                ros: ros,
+                tfClient: tfClientM,
+                topic: '/simple_marker',
+                camera: viewer3d.camera,
+                rootObject: viewer3d.selectableObjects
+            });
+
+
+            var robotPosition = new ROS3D.MarkerClient({
+                ros: ros,
+                tfClient: tfClientM,
+                topic: '/visualization_marker',
+                camera: viewer3d.camera,
+                rootObject: viewer3d.selectableObjects,
+                lifetime: 10
+
+            })
+
+
+
+        });
+
+        var actionClient = new ROSLIB.ActionClient({
+            ros: ros,
+            actionName: 'move_base_msgs/MoveBaseAction',
+            serverName: '/move_base'
+        });
+
+        /*
+        position: 
+  x: 1.59389514566
+  y: -0.711152158723
+  z: 0.01
+orientation: 
+  x: 0.0
+  y: 0.0
+  z: -0.868792298622
+  w: 0.495176677415
+        */
+
+        function sendGoal() {
+            // create a goal
+
+            var v1 = new ROSLIB.Vector3({
+                x: 1.59389514566,
+                y: -0.711152158723,
+                z: 0.01
+            });
+            var v2 = v1.clone();
+            v1.add(v2);
+            console.log(v1);
+
+            var q1 = new ROSLIB.Quaternion({
+                x: 0.0,
+                y: 0.0,
+                z: -0.868792298622,
+                w: 0.495176677415
+            });
+
+            var pose = new ROSLIB.Pose({
+                position: v1,
+                orientation: q1
+            });
+            var goal = new ROSLIB.Goal({
+                actionClient: actionClient,
+                goalMessage: {
+                    target_pose: {
+                        header: {
+                            frame_id: 'map'
+                        },
+                        pose: pose
+                    }
+                }
+            });
+            goal.send();
+
+
+
+            goal.on('result', function () {
+                console.log("goal reach!!!!!")
+            });
+        }
+
+
+        var getPoseSrv = new ROSLIB.Service({
+            ros: ros,
+            name: '/get_pose',
+            serviceType: 'agv_interface/getpost'
+        })
+
+        var poseReq = new ROSLIB.ServiceRequest({
+
+        });
+
+
+        var startSLAMsrv = new ROSLIB.Service({
+            ros: ros,
+            name: '/start_slam',
+            serviceType: 'agv_interface/slamsrv'
+        });
+
+        var onSlam = new ROSLIB.ServiceRequest({
+            onezero: 1,
+            map_file: "map_office"
+        });
+
+
+
+        var offSlam = new ROSLIB.ServiceRequest({
+            onezero: 0,
+            map_file: "map_office"
+        });
+
+
+
+        var startNavSrv = new ROSLIB.Service({
+            ros: ros,
+            name: '/start_navigation',
+            serviceType: 'agv_interface/navigatesrv'
+        });
+
+        var onNav = new ROSLIB.ServiceRequest({
+            onezero: 1,
+            map_file: "map_office"
+        });
+
+        var offNav = new ROSLIB.ServiceRequest({
+            onezero: 0,
+            map_file: "map_office"
+        });
+
+
+
+
+
+
+
+        var onMarker = new ROSLIB.ServiceRequest({
+            onezero: 1
+        });
+
+        var offMarker = new ROSLIB.ServiceRequest({
+            onezero: 0
+        });
+
+        var showPoseMarker = new ROSLIB.Service({
+            ros: ros,
+            name: '/poseestimate_markers_service',
+            serviceType: 'agv_interface/poseestimate'
+        });
+
+
+        var showNavMarker = new ROSLIB.Service({
+            ros: ros,
+            name: '/waypoint_markers_service',
+            serviceType: 'agv_interface/navigatesrv'
+        });
+
+        var setPose = new ROSLIB.Service({
+            ros: ros,
+            name: '/set_pose',
+            serviceType: 'agv_interface/poseestimate'
+        });
+
+        var getMap = new ROSLIB.Service({
+            ros: ros,
+            name: '/get_map',
+            serviceType: 'agv_interface/maps'
+        });
+
+        var saveMapSrv = new ROSLIB.Service({
+            ros: ros,
+            name: '/save_map',
+            serviceType: 'agv_interface/savemaps'
+        })
+
+
+
+
+        function startSLAM() {
+            if (document.getElementById('switch_slam').checked) {
+
+                startSLAMsrv.callService(onSlam, function (result) {
+                    console.log(result);
+                })
+            } else {
+                startSLAMsrv.callService(offSlam, function (result) {
+                    console.log(result);
+                })
+            }
+
+
+            console.log("Click Click")
+        }
+
+
+        $(function () {
+            $('#switch_nav').change(function () {
+                var check_nav = $(this).prop('checked')
+                mapname = $('#mapTable').bootstrapTable('getSelections')[0].name
+
+                if (check_nav == true) {
+
+                    var onNav_ = new ROSLIB.ServiceRequest({
+                        onezero: 1,
+                        map_file: mapname
+                    });
+
+                    console.log(onNav_)
+
+                    startNavSrv.callService(onNav_, function (result) {
+                        console.log(result);
+                    })
+                    document.getElementById("switch_slam").disabled = true
+
+
+                } else {
+
+                    var offNav_ = new ROSLIB.ServiceRequest({
+                        onezero: 0,
+                        map_file: mapname
+                    });
+
+
+                    console.log(offNav_)
+
+                    startNavSrv.callService(offNav_, function (result) {
+                        console.log(result);
+                    })
+
+                    document.getElementById("switch_slam").disabled = false
+                }
+                console.log(check_nav)
+            })
+        })
+
+
+        $(function () {
+            $('#switch_slam').change(function () {
+                var check_nav = $(this).prop('checked')
+                if (check_nav == true) {
+
+                    startSLAMsrv.callService(onSlam, function (result) {
+                        console.log(result);
+                    })
+
+                    document.getElementById("switch_nav").disabled = true
+
+
+                } else {
+                    startSLAMsrv.callService(offSlam, function (result) {
+                        console.log(result);
+                    })
+
+                    document.getElementById("switch_nav").disabled = false
+                }
+                console.log(check_nav)
+            })
+        })
+
+
+        $(function () {
+            $('#show_pose_marker').change(function () {
+                var check_nav = $(this).prop('checked')
+                if (check_nav == true) {
+
+                    showPoseMarker.callService(onMarker, function (result) {
+                        console.log(result);
+                    })
+                } else {
+                    showPoseMarker.callService(offMarker, function (result) {
+                        console.log(result);
+                    })
+                }
+                console.log(check_nav)
+            })
+        })
+
+
+        $(function () {
+            $('#show_nav_marker').change(function () {
+                var check_nav = $(this).prop('checked')
+                if (check_nav == true) {
+
+                    showNavMarker.callService(onMarker, function (result) {
+                        console.log(result);
+                    })
+                } else {
+                    showNavMarker.callService(offMarker, function (result) {
+                        console.log(result);
+                    })
+                }
+                console.log(check_nav)
+            })
+        })
+
+
+
+
+        function loadMap() {
+            getMap.callService(onMarker, function (result) {
+                console.log("Done");
+                console.log(result);
+                var dataSet = []
+                result.map_file.forEach(fn => {
+                    var item = {
+                        name: fn
+                    }
+                    dataSet.push(item)
+                    console.log(fn)
+
+                });
+
+            
+                console.log(dataSet)
+
+               $('#mapTable').bootstrapTable({
+                    data: dataSet
+                })
+
+               // $('#mapTable').bootstrapTable("destroy");
+               $('#mapTable').bootstrapTable('load', dataSet
+                )
+
+       
+                
+            })
+
+
+        }
+
+
+
+
+
+
+
+
+        $(function () {
+            $('#exampleModal').on('show.bs.modal', function () {
+                // do something…
+                console.log("Modal loaded")
+                var table = document.getElementById('tableContents');
+                var tableContents = ''
+                dataFiles.forEach(fn => {
+                    console.log(fn)
+                    tableContents = tableContents + '<tr class="clickableRow"><td>' + fn +
+                        '</td></tr>';
+
+                });
+                console.log(tableContents)
+                table.innerHTML = tableContents;
+
+            })
+        })
+
+
+
+
+
+
+        /*$(function () {
+            $('#mapTable').on('click', 'tbody tr', function (event) {
+                $(this).addClass('highlight').siblings().removeClass('highlight');
+                //var myTable = $('#mapTable').DataTable();
+                //var numberOfSelections = $('#mapTable').bootstrapTable('getSelections').row; 
+                console.log(myTable)
+            });
+        })*/
+
+
+
+
+        function setPoseCall() {
+            setPose.callService(onMarker, function (result) {
+                console.log(result);
+            })
+        }
+
+        function setNavCall() {
+            setPose.callService(onMarker, function (result) {
+                console.log(result);
+            })
+        }
+
+        function getPose() {
+            getPoseSrv.callService(poseReq, function (result) {
+                console.log(result);
+            })
+        }
+
+
+        function saveMap() {
+            var inputVal = document.getElementById("map_name").value;
+            var mapName_ = new ROSLIB.ServiceRequest({
+                mapfile: inputVal
+            });
+
+            console.log(mapName_)
+            console.log(saveMapSrv)
+
+            saveMapSrv.callService(mapName_, function (result) {
+                console.log(result);
+            })
+            console.log(inputVal)
+        }
+    </script>
+</head>
+
+
+
+<body>
+
+    <div class="container-fluid">
+        <div class="row">
+            ROS
+        </div>
+
+
+        <div class="row mx-2">
+
+            <div class="col-2">
+                <div class="row">
+                    <button type="button" class="btn btn-primary" onclick="saveMap()">Primary</button>
+                </div>
+                <div class="row">
+                    <button type="button" class="btn btn-secondary">Start SLAM</button>
+
+                </div>
+
+
+                <!-- Button trigger modal -->
+
+
+                <div class="row">
+                    <button type="button" class="btn btn-success" onclick="getPose()">get pose</button>
+                </div>
+
+                <div class="row">
+                    SLAM: <input type="checkbox" id="switch_slam" data-toggle="toggle" />
+                    <button type="button" class="btn btn-info btn-lg" data-toggle="modal"
+                        data-target="#saveMapModal">Save map</button>
+                </div>
+
+
+
+                <div class="row">
+                    Pose estimate: <input type="checkbox" id="show_pose_marker" data-toggle="toggle" />
+                    <button type="button" class="btn btn-secondary" onclick="setPoseCall()">Set pose</button>
+                </div>
+
+                <div class="row">
+                    Pose estimate: <input type="checkbox" id="show_nav_marker" data-toggle="toggle" />
+                    <button type="button" class="btn btn-secondary" onclick="setNavCall()">Set waypoint</button>
+                </div>
+
+
+            </div>
+            <div class="col-8" min-height="100vh">
+                <div id="map3d" min-height="100vh"></div>
+            </div>
+            <div class="col-2">
+
+
+
+
+                <button type="button" class="btn btn-primary" onclick="loadMap()">
+                    Load Map
+                </button>
+
+                <table id="mapTable" data-click-to-select="true" data-single-select="true" data-url="json/data1.json">
+                    <thead>
+                        <tr>
+                            <th data-field="state" data-checkbox="true"></th>
+                            <th data-field="name">Item Name</th>
+
+                        </tr>
+                    </thead>
+                </table>
+
+                <!--<button id="set_map_btn" class="btn btn-secondary">set map</button>-->
+                <div class="row">
+                    NAV: <input type="checkbox" id="switch_nav" data-toggle="toggle" />
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+
+
+
+
+    </div>
+
+
+
+
+    <!-- Modal -->
+
+
+
+    <div class="modal fade" id="saveMapModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                            aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="exampleModalLabel">Enter map name</h4>
+                </div>
+                <div class="modal-body">
+                    <form role="form">
+
+                        <div class="form-group">
+                            <label for="first-name" class="control-label"></label>
+                            <input type="text" class="form-control" id="map_name" placeholder="Map name">
+                        </div>
+
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveMap()"> Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
